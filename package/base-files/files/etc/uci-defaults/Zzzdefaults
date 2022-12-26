@@ -14,3 +14,5 @@
 
  uci set system.@system[0].hostname='MasterBuild'
  uci commit system
+
+exit 0
