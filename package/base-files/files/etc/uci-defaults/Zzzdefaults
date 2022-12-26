@@ -1,18 +1,18 @@
- uci set luci.main.lang=en
- uci commit luci
+uci set luci.main.lang=en
+uci commit luci
  
- uci set network.lan.ipaddr=192.168.2.1
- uci commit network
+uci set network.lan.ipaddr=192.168.2.1
+uci commit network
 
- uci set luci.themes.Open=/luci-static/open
- uci	set luci.main.mediaurlbase=/luci-static/open
- commit luci
+uci set luci.themes.Open=/luci-static/open
+uci	set luci.main.mediaurlbase=/luci-static/open
+commit luci
 
- uci set system.@system[0].timezone=CST-8
- uci set system.@system[0].zonename=Asia/Shanghai
- uci commit system
+uci set system.@system[0].timezone=CST-8
+uci set system.@system[0].zonename=Asia/Shanghai
+uci commit system
 
- uci set system.@system[0].hostname='MasterBuild'
- uci commit system
+uci set system.@system[0].hostname='MasterBuild'
+uci commit system
 
 exit 0
