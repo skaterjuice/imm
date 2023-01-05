@@ -2,6 +2,7 @@ uci set luci.main.lang=en
 uci commit luci
  
 uci set network.lan.ipaddr=192.168.2.1
+uci set network.lan.netmask=255.255.254.0
 uci commit network
 
 uci set luci.themes.Open=/luci-static/argon		
