@@ -96,8 +96,8 @@ define Device/bananapi_bpi-r3
   DEVICE_MODEL := BPi-R3
   DEVICE_DTS := mt7986a-bananapi-bpi-r3
   DEVICE_DTS_CONFIG := config-mt7986a-bananapi-bpi-r3
-  DEVICE_DTS_OVERLAY:= mt7986a-bananapi-bpi-r3-nor mt7986a-bananapi-bpi-r3-emmc-nor mt7986a-bananapi-bpi-r3-emmc-snand mt7986a-bananapi-bpi-r3-snand
-  DEVICE_DTS_DIR := ../dts
+  DEVICE_DTS_OVERLAY:= mt7986a-bananapi-bpi-r3-emmc mt7986a-bananapi-bpi-r3-nand mt7986a-bananapi-bpi-r3-nor mt7986a-bananapi-bpi-r3-sd
+  DEVICE_DTS_DIR := $(DTS_DIR)/
   DEVICE_PACKAGES := kmod-hwmon-pwmfan kmod-i2c-gpio kmod-mt7986-firmware kmod-sfp kmod-usb3 e2fsprogs f2fsck mkf2fs mt7986-wo-firmware
   IMAGES := sysupgrade.itb
   KERNEL_LOADADDR := 0x44000000
@@ -135,7 +135,9 @@ define Device/bananapi_bpi-r3
   KERNEL_INITRAMFS := kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | pad-rootfs | append-metadata
-  DTC_FLAGS += -@ --space 32768
+  DEVICE_DTC_FLAGS := --pad 4096
+  DEVICE_COMPAT_VERSION := 1.1
+  DEVICE_COMPAT_MESSAGE := Device tree overlay mechanism needs bootloader update
 endef
 TARGET_DEVICES += bananapi_bpi-r3
 
@@ -214,7 +216,6 @@ define Device/mediatek_mt7986a-rfb-nand
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS = kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd
-  DTC_FLAGS += -@ --space 32768
 endef
 TARGET_DEVICES += mediatek_mt7986a-rfb-nand
 
@@ -254,41 +255,9 @@ define Device/mediatek_mt7988a-rfb-nand
 endef
 TARGET_DEVICES += mediatek_mt7988a-rfb-nand
 
-define Device/qihoo_360-t7-common
-  DEVICE_VENDOR := Qihoo
-  DEVICE_DTS_DIR := ../dts
-  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware
-  UBINIZE_OPTS := -E 5
-  BLOCKSIZE := 128k
-  PAGESIZE := 2048
-  IMAGE_SIZE := 65536k
-  KERNEL_IN_UBI := 1
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-  KERNEL = kernel-bin | lzma | \
-	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
-  KERNEL_INITRAMFS = kernel-bin | lzma | \
-	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd
-endef
-
-define Device/qihoo_360-t7-stock
-  DEVICE_MODEL := 360 T7 (stock layout)
-  DEVICE_DTS := mt7981b-qihoo-360-t7-stock
-  $(call Device/qihoo_360-t7-common)
-endef
-TARGET_DEVICES += qihoo_360-t7-stock
-
-define Device/qihoo_360-t7-ubootmod
-  DEVICE_MODEL := 360 T7 (modified U-Boot layout)
-  DEVICE_DTS := mt7981b-qihoo-360-t7-ubootmod
-  $(call Device/qihoo_360-t7-common)
-endef
-TARGET_DEVICES += qihoo_360-t7-ubootmod
-
 define Device/qihoo_360t7
   DEVICE_VENDOR := Qihoo
-  DEVICE_MODEL := 360 T7 (OpenWrt U-Boot layout)
+  DEVICE_MODEL := 360T7 (OpenWrt U-Boot layout)
   DEVICE_DTS := mt7981b-qihoo-360t7
   DEVICE_DTS_DIR := ../dts
   UBINIZE_OPTS := -E 5
@@ -309,6 +278,28 @@ define Device/qihoo_360t7
   ARTIFACT/bl31-uboot.fip := mt7981-bl31-uboot qihoo_360t7
 endef
 TARGET_DEVICES += qihoo_360t7
+
+define Device/qihoo_360t7-ubootmod
+  DEVICE_VENDOR := Qihoo
+  DEVICE_MODEL := 360T7 (modified U-Boot layout)
+  DEVICE_DTS := mt7981b-qihoo-360t7-ubootmod
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware
+  SUPPORTED_DEVICES += qihoo,360-t7-ubootmod
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  KERNEL = kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS = kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd
+endef
+TARGET_DEVICES += qihoo_360t7-ubootmod
 
 define Device/tplink_tl-xdr-common
   DEVICE_VENDOR := TP-Link
@@ -433,6 +424,5 @@ define Device/zyxel_ex5601-t0-stock
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS = kernel-bin | lzma | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd
-  DTC_FLAGS += -@ --space 32768
 endef
 TARGET_DEVICES += zyxel_ex5601-t0-stock
