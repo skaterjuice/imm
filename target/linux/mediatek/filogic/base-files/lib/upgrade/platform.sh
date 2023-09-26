@@ -81,6 +81,23 @@ platform_do_upgrade() {
 			;;
 		esac
 		;;
+	cmcc,rax3000m)
+		case "$(cmdline_get_var root)" in
+		/dev/mmc*)
+			CI_KERNPART="production"
+			emmc_do_upgrade "$1"
+			;;
+		*)
+			CI_KERNPART="fit"
+			nand_do_upgrade "$1"
+			;;
+		esac
+		;;
+	cmcc,rax3000m-emmc-ubootmod)
+		CI_KERNPART="kernel"
+		CI_ROOTPART="rootfs"
+		emmc_do_upgrade "$1"
+		;;
 	cudy,wr3000-v1)
 		default_do_upgrade "$1"
 		;;
@@ -119,7 +136,8 @@ platform_check_image() {
 	[ "$#" -gt 1 ] && return 1
 
 	case "$board" in
-	bananapi,bpi-r3)
+	bananapi,bpi-r3|\
+	cmcc,rax3000m)
 		[ "$magic" != "d00dfeed" ] && {
 			echo "Invalid image type."
 			return 1
@@ -137,12 +155,16 @@ platform_check_image() {
 
 platform_copy_config() {
 	case "$(board_name)" in
-	bananapi,bpi-r3)
+	bananapi,bpi-r3|\
+	cmcc,rax3000m)
 		case "$(cmdline_get_var root)" in
 		/dev/mmc*)
 			emmc_copy_config
 			;;
 		esac
+		;;
+	cmcc,rax3000m-emmc-ubootmod)
+		emmc_copy_config
 		;;
 	esac
 }
