@@ -90,6 +90,21 @@ define Build/zyxel-nwa-fit-filogic
 	@mv $@.new $@
 endef
 
+define Build/cetron-header
+	$(eval magic=$(word 1,$(1)))
+	$(eval model=$(word 2,$(1)))
+	( \
+		dd if=/dev/zero bs=856 count=1 2>/dev/null; \
+		printf "$(model)," | dd bs=128 count=1 conv=sync 2>/dev/null; \
+		md5sum $@ | cut -f1 -d" " | dd bs=32 count=1 2>/dev/null; \
+		printf "$(magic)" | dd bs=4 count=1 conv=sync 2>/dev/null; \
+		cat $@; \
+	) > $@.tmp
+	fw_crc=$$(gzip -c $@.tmp | tail -c 8 | od -An -N4 -tx4 --endian little | tr -d ' \n'); \
+	printf "$$(echo $$fw_crc | sed 's/../\\x&/g')" | cat - $@.tmp > $@
+	rm $@.tmp
+endef
+
 define Device/abt_asr3000-ubootmod
   DEVICE_VENDOR := ABT
   DEVICE_MODEL := ASR3000 (custom U-Boot layout)
@@ -220,7 +235,7 @@ define Device/bananapi_bpi-r3-mini
   DEVICE_DTC_FLAGS := --pad 4096
   DEVICE_DTS_LOADADDR := 0x43f00000
   DEVICE_PACKAGES := kmod-hwmon-pwmfan kmod-mt7986-firmware mt7986-wo-firmware \
-	kmod-usb3 automount f2fsck mkf2fs \
+	kmod-nvme kmod-usb3 automount f2fsck mkf2fs \
 	kmod-usb-net-cdc-mbim kmod-usb-net-qmi-wwan kmod-usb-serial-option uqmi \
 	luci-proto-mbim luci-proto-qmi
   KERNEL_LOADADDR := 0x44000000
@@ -243,6 +258,25 @@ define Device/bananapi_bpi-r3-mini
   ARTIFACT/snand-bl31-uboot.fip := mt7986-bl31-uboot bananapi_bpi-r3-mini-snand
 endef
 TARGET_DEVICES += bananapi_bpi-r3-mini
+
+define Device/cetron_ct3003-stock
+  DEVICE_VENDOR := Cetron
+  DEVICE_MODEL := CT3003
+  DEVICE_VARIANT := (stock layout)
+  DEVICE_DTS := mt7981b-cetron-ct3003-stock
+  DEVICE_DTS_DIR := ../dts
+  SUPPORTED_DEVICES += cetron,ct3003 mediatek,mt7981-spim-snand-rfb
+  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 32768k
+  KERNEL_IN_UBI := 1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  IMAGES += factory.bin
+  IMAGE/factory.bin := $$(IMAGE/sysupgrade.bin) | cetron-header rd30 CT3003
+endef
+TARGET_DEVICES += cetron_ct3003-stock
 
 define Device/cetron_ct3003-ubootmod
   DEVICE_VENDOR := Cetron
@@ -385,14 +419,10 @@ define Device/glinet_gl-mt2500
   DEVICE_DTS := mt7981b-glinet-gl-mt2500
   DEVICE_DTS_DIR := ../dts
   DEVICE_DTS_LOADADDR := 0x47000000
-  DEVICE_PACKAGES := kmod-usb3
+  DEVICE_PACKAGES := -kmod-mt7915e -wpad-openssl f2fsck mkf2fs kmod-usb3 automount
   SUPPORTED_DEVICES += glinet,mt2500-emmc
   IMAGES := sysupgrade.bin
-  KERNEL := kernel-bin | lzma | \
-	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-  KERNEL_INITRAMFS := kernel-bin | lzma | \
-	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-gl-metadata
 endef
 TARGET_DEVICES += glinet_gl-mt2500
 
@@ -402,8 +432,8 @@ define Device/glinet_gl-mt3000
   DEVICE_DTS := mt7981b-glinet-gl-mt3000
   DEVICE_DTS_DIR := ../dts
   SUPPORTED_DEVICES += glinet,mt3000-snand
-  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware \
-	kmod-hwmon-pwmfan kmod-usb3 automount
+  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware kmod-hwmon-pwmfan \
+	kmod-usb3 automount
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -418,8 +448,8 @@ define Device/glinet_gl-mt6000
   DEVICE_MODEL := GL-MT6000
   DEVICE_DTS := mt7986a-glinet-gl-mt6000
   DEVICE_DTS_DIR := ../dts
-  DEVICE_PACKAGES := kmod-mt7986-firmware mt7986-wo-firmware kmod-usb3 \
-	f2fsck mkf2fs automount
+  DEVICE_PACKAGES := kmod-usb3 kmod-mt7986-firmware mt7986-wo-firmware \
+	automount f2fsck mkf2fs
   IMAGES += factory.bin
   IMAGE/factory.bin := append-kernel | pad-to 32M | append-rootfs
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-gl-metadata
@@ -559,6 +589,32 @@ define Device/jcg_q30-ubootmod
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd
 endef
 TARGET_DEVICES += jcg_q30-ubootmod
+
+define Device/jdcloud_re-cp-03
+  DEVICE_VENDOR := JDCloud
+  DEVICE_MODEL := RE-CP-03
+  DEVICE_DTS := mt7986a-jdcloud-re-cp-03
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_DTC_FLAGS := --pad 4096
+  DEVICE_DTS_LOADADDR := 0x43f00000
+  DEVICE_PACKAGES := kmod-mt7986-firmware mt7986-wo-firmware \
+	e2fsprogs f2fsck mkf2fs
+  KERNEL_LOADADDR := 0x44000000
+  KERNEL := kernel-bin | gzip
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  KERNEL_INITRAMFS_SUFFIX := -recovery.itb
+  IMAGES := sysupgrade.itb
+  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
+  IMAGE/sysupgrade.itb := append-kernel | \
+	fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
+	pad-rootfs | append-metadata
+  ARTIFACTS :=gpt.bin preloader.bin bl31-uboot.fip
+  ARTIFACT/gpt.bin := mt798x-gpt emmc
+  ARTIFACT/preloader.bin := mt7986-bl2 emmc-ddr4
+  ARTIFACT/bl31-uboot.fip := mt7986-bl31-uboot jdcloud_re-cp-03
+endef
+TARGET_DEVICES += jdcloud_re-cp-03
 
 define Device/livinet_zr-3020-common
   DEVICE_VENDOR := Livinet
@@ -1026,7 +1082,8 @@ define Device/zbtlink_zbt-z8102ax
   DEVICE_MODEL := ZBT-Z8102AX
   DEVICE_DTS := mt7981b-zbtlink-zbt-z8102ax
   DEVICE_DTS_DIR := ../dts
-  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware kmod-usb-net-qmi-wwan kmod-usb-serial-option
+  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 \
+	kmod-usb-net-qmi-wwan kmod-usb-serial-option automount
   KERNEL_IN_UBI := 1
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
